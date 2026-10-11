@@ -1,4 +1,4 @@
-# Telecom Archive & MMS Audit Trail Automator
+# Telecom Archive & SMS/MMS Audit Trail Automator
 
 An end-to-end extraction and ETL pipeline to pull historical SMS/MMS transcripts and multimedia attachments from Vonage, archive media assets locally, and generate indexed, thumbnail-embedded audit spreadsheets.
 
