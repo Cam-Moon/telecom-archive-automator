@@ -4,7 +4,7 @@ An end-to-end extraction and ETL pipeline to pull historical SMS/MMS transcripts
 
 ---
 
-## 📌 Business Challenge & Impact
+##  Business Challenge & Impact
 
 - **Context:** During a business communications migration off a legacy VoIP/telecom platform (Vonage), historical client text threads and MMS attachments needed to be archived for compliance and claims records.
 
@@ -19,7 +19,7 @@ An end-to-end extraction and ETL pipeline to pull historical SMS/MMS transcripts
 
 ---
 
-## 🏗️ Pipeline Overview
+##  Pipeline Overview
 
 **Stage 1: Ingestion** (`vonage_sms_final.js`)
 - Executes authenticated GET requests against the Vonage API to chronologically sweep and export raw JSON message transcripts.
@@ -32,7 +32,7 @@ An end-to-end extraction and ETL pipeline to pull historical SMS/MMS transcripts
 
 ---
 
-## 🚀 Key Technical Highlights
+##  Key Technical Highlights
 
 - **In-Memory Thumbnail Generation:** Utilizes `Pillow` and `io.BytesIO()` to generate and embed 55x55 thumbnails on the fly, optimizing file size.
 - **Local/Cloud Link Parity:** Relative hyperlink design guarantees links function whether opened on local encrypted storage (BitLocker) or enterprise cloud drives (OneDrive for Business).
@@ -40,7 +40,7 @@ An end-to-end extraction and ETL pipeline to pull historical SMS/MMS transcripts
 
 ---
 
-## 🛠️ Stack & Dependencies
+##  Stack & Dependencies
 
 - **Languages:** JavaScript (ES6), Python 3.13+
 - **Core Libraries:** `openpyxl`, `Pillow`, `JSZip`
