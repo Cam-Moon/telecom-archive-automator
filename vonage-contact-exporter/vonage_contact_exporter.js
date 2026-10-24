@@ -1,5 +1,5 @@
 // ==========================================
-// SECURE VONAGE CONTACT EXTRACTOR
+// SECURE VONAGE CONTACT EXTRACTOR (Fixed Pagination)
 // ==========================================
 // Run this in the browser console. It will prompt for credentials securely 
 // so no sensitive data is ever saved in this file or committed to GitHub.
@@ -32,8 +32,8 @@ if (!addressBookId || !bearerToken) {
         return sanitized;
     }
 
-    function fetchContacts(url) {
-        fetch(url, requestOptions)
+    function fetchContacts(currentUrl) {
+        fetch(currentUrl, requestOptions)
             .then(res => {
                 if (!res.ok) {
                     if (res.status === 401) {
@@ -52,9 +52,17 @@ if (!addressBookId || !bearerToken) {
                 let contacts = data.contacts || [];
                 allContacts = allContacts.concat(contacts);
 
+                // Turn the page if the current batch is full
                 if (data.cursor && contacts.length === 200) {
-                    let nextUrl = url.replace("since=0&", "") + "&cursor=" + encodeURIComponent(data.cursor);
-                    fetchContacts(nextUrl);
+                    
+                    // PAGINATION FIX: Use the URL object to safely update parameters 
+                    // without stacking duplicate query strings.
+                    let nextUrl = new URL(currentUrl);
+                    nextUrl.searchParams.delete("since");
+                    nextUrl.searchParams.set("cursor", data.cursor);
+                    
+                    fetchContacts(nextUrl.toString());
+                    
                 } else {
                     alert(`✅ Success! Exported ${allContacts.length} contacts.`);
                     buildAndDownloadCSV();
@@ -92,6 +100,6 @@ if (!addressBookId || !bearerToken) {
     }
 
     console.clear();
-    console.log("Starting secure extraction...");
+    console.log("Starting secure extraction with fixed pagination...");
     fetchContacts(baseUrl);
 }
