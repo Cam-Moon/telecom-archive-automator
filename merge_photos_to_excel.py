@@ -5,6 +5,10 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Font
 from PIL import Image as PILImage
 
+# 1. SECURITY PRECAUTION: Prevent Image Decompression Bombs (Denial of Service)
+# Limits Pillow to opening images under 50 Megapixels
+PILImage.MAX_IMAGE_PIXELS = 50000000 
+
 EXCEL_FILE = "Vonage_SMS_History_Full_Tabs.xlsx"
 PHOTOS_DIR = "Vonage_Photos"
 OUTPUT_FILE = "Vonage_SMS_History_With_Photos.xlsx"
@@ -72,11 +76,22 @@ for sheet_name in wb.sheetnames:
           # Add relative clickable link in Column F
           link_cell = ws.cell(row=row, column=6)
           link_cell.value = f"Open Full Image ({matched_filename})"
-          link_cell.hyperlink = f"{PHOTOS_DIR}/{matched_filename}"
+          
+          # Explicitly format as a URI to ensure cross-platform compatibility
+          link_cell.hyperlink = f"file:///{PHOTOS_DIR}/{matched_filename}"
           link_cell.font = Font(color="0000FF", underline="single")
+          
         except Exception as e:
           print(f"Skipping {matched_filename}: {e}")
+        finally:
+          # Free the memory buffer explicitly
+          if 'img_bytes' in locals():
+              img_bytes.close()
 
 print("Saving merged workbook...")
 wb.save(OUTPUT_FILE)
+
+# 2. RESOURCE MANAGEMENT: Close the workbook to free up system memory
+wb.close() 
+
 print(f"Complete! Saved as '{OUTPUT_FILE}'.")
