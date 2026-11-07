@@ -1,4 +1,3 @@
-# QIG Local Setup Test
 import io
 import os
 import openpyxl
