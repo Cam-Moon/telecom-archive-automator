@@ -4,12 +4,23 @@
     // 1. Load JSZip
     if (typeof JSZip === 'undefined') {
         console.log("Loading JSZip library...");
-        await new Promise(resolve => {
+        const loaded = await new Promise(resolve => {
             let script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            script.onload = resolve;
+            // Subresource Integrity: the browser refuses the file unless it is
+            // byte-for-byte the official JSZip 3.10.1 build, so a tampered CDN
+            // copy can't run inside your logged-in Vonage tab.
+            script.integrity = 'sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==';
+            script.crossOrigin = 'anonymous';
+            script.referrerPolicy = 'no-referrer';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
             document.head.appendChild(script);
         });
+        if (!loaded || typeof JSZip === 'undefined') {
+            console.error("❌ Could not load JSZip (blocked by the page or network). Extraction aborted.");
+            return;
+        }
     }
     const zip = new JSZip();
     const folder = zip.folder("Vonage_Photos");
@@ -27,10 +38,18 @@
     };
 
     // 3. Photo attachments array (SCRUBBED for public GitHub repo)
-    // Note: To actually run this later, you would replace this array with your real message data.
+    // Replace these mock entries with one entry per attachment from your own
+    // SMS export (Stage 2 JSON). Each entry needs:
+    //   messageId    - the Vonage message ID the attachment belongs to
+    //   attachmentId - the attachment's ID on that message
+    //   filename     - MUST be "<phone>_<YYYY-MM-DD>_<anything>.<ext>", where
+    //                  <phone> matches the sheet (tab) name and <YYYY-MM-DD>
+    //                  matches the Date column in the Stage 4 workbook.
+    //                  merge_photos_to_excel.py uses those two parts to put
+    //                  each photo on the right row.
     const attachments = [
-        {"messageId": "mock_msg_1", "attachmentId": "mock_att_1", "filename": "555-010-0001_2025-10-14_sample1.png"},
-        {"messageId": "mock_msg_2", "attachmentId": "mock_att_2", "filename": "555-010-0002_2025-10-17_sample2.jpg"}
+        {"messageId": "mock_msg_1", "attachmentId": "mock_att_1", "filename": "555-010-0001_2026-10-11_sample.jpg"},
+        {"messageId": "mock_msg_2", "attachmentId": "mock_att_2", "filename": "555-010-0001_2026-10-15_sample.jpg"}
     ];
 
     console.log(`Found ${attachments.length} photos to download. Starting...`);
@@ -72,15 +91,30 @@
             const originalName = att.filename.split('_').pop();
             const encodedName = encodeURIComponent(originalName);
             
-            const reqStr = encodeURIComponent(`{"attachmentId":"${att.attachmentId}","attachmentDownloadDetailsRequestList":[{"type":"original","response-content-disposition":"attachment; filename=\\"${encodedName}\\""}]}`);
+            // Built with JSON.stringify so quotes or backslashes in an ID can't
+            // break the request (produces the same JSON as before otherwise).
+            const reqStr = encodeURIComponent(JSON.stringify({
+                attachmentId: att.attachmentId,
+                attachmentDownloadDetailsRequestList: [{
+                    type: "original",
+                    "response-content-disposition": `attachment; filename="${encodedName}"`
+                }]
+            }));
             const apiUrl = `https://api.vonagebusiness.com/pandora/v1/messages/${att.messageId}/attachments?downloadAttachmentRequests=${reqStr}`;
             
             let res = await fetch(apiUrl, { headers });
+            if (!res.ok) {
+                throw new Error(res.status === 401
+                    ? "HTTP 401 - token expired or invalid"
+                    : `Attachment lookup failed: HTTP ${res.status}`);
+            }
             let data = await res.json();
-            
-            const s3Url = data[0].urls[0].presigned_url.url;
-            
+
+            const s3Url = data?.[0]?.urls?.[0]?.presigned_url?.url;
+            if (!s3Url) throw new Error("No download URL in Vonage response");
+
             let imgRes = await fetch(s3Url);
+            if (!imgRes.ok) throw new Error(`Image download failed: HTTP ${imgRes.status}`);
             let imgBlob = await imgRes.blob();
             
             folder.file(att.filename, imgBlob);

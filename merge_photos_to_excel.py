@@ -15,7 +15,8 @@ OUTPUT_FILE = "Vonage_SMS_History_With_Photos.xlsx"
 
 print("Scanning local photos...")
 photo_files = {}
-for fname in os.listdir(PHOTOS_DIR):
+# sorted() so photos from the same day are matched in a predictable order
+for fname in sorted(os.listdir(PHOTOS_DIR)):
     if not fname.startswith(".") and os.path.isfile(
         os.path.join(PHOTOS_DIR, fname)
     ):
@@ -73,20 +74,21 @@ for sheet_name in wb.sheetnames:
                     ws.add_image(xl_img, f"E{row}")
                     ws.row_dimensions[row].height = 48
 
-                    # Add relative clickable link in Column F
+                    # Add relative clickable link in Column F.
+                    # A plain relative path (no "file:///" prefix) resolves
+                    # against the workbook's own folder, so keep the output
+                    # workbook next to the Vonage_Photos folder.
                     link_cell = ws.cell(row=row, column=6)
                     link_cell.value = f"Open Full Image ({matched_filename})"
-                    
-                    # Explicitly format as a URI to ensure cross-platform compatibility
-                    link_cell.hyperlink = f"file:///{PHOTOS_DIR}/{matched_filename}"
+                    link_cell.hyperlink = f"{PHOTOS_DIR}/{matched_filename}"
                     link_cell.font = Font(color="0000FF", underline="single")
-                    
+
+                    # NOTE: do not close img_bytes here. openpyxl only reads
+                    # the thumbnail data when wb.save() runs below, so closing
+                    # the buffer early makes the save crash.
+
                 except Exception as e:
                     print(f"Skipping {matched_filename}: {e}")
-                finally:
-                    # Free the memory buffer explicitly
-                    if 'img_bytes' in locals():
-                        img_bytes.close()
 
 print("Saving merged workbook...")
 wb.save(OUTPUT_FILE)
