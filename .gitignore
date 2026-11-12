@@ -1,0 +1,7 @@
+# Real exports contain customer data -- keep them out of version control.
+# (The sample workbook and Vonage_Photos/ samples are already tracked and unaffected.)
+Vonage_SMS_History_With_Photos.xlsx
+Vonage_Contacts_Safe_Export*.csv
+vonage_sms_backup_*.json
+Vonage_Photos_Backup*.zip
+__pycache__/

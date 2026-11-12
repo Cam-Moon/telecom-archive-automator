@@ -19,13 +19,25 @@ if (!addressBookId || !bearerToken) {
 
     let allContacts = [];
 
+    // Escapes quotes and blocks spreadsheet formula injection
+    // (values starting with = + - @ tab or carriage return).
     function sanitizeForCSV(value) {
-        if (!value) return "";
-        let sanitized = value.split('"').join('""'); 
-        if (/^[=+\-@]/.test(sanitized)) {
-            sanitized = "'" + sanitized;             
+        if (value === null || value === undefined) return "";
+        let sanitized = String(value).split('"').join('""');
+        if (/^[=+\-@\t\r]/.test(sanitized)) {
+            sanitized = "'" + sanitized;
         }
         return sanitized;
+    }
+
+    // Phone numbers commonly start with "+" (e.g. +15551234567), which the
+    // generic rule above would prefix with a stray apostrophe. A value made of
+    // only phone characters can't be a formula, so leave it untouched.
+    function sanitizePhoneForCSV(value) {
+        if (value === null || value === undefined) return "";
+        const str = String(value).trim();
+        if (/^\+?[0-9\s().\-]+$/.test(str)) return str;
+        return sanitizeForCSV(str);
     }
 
     function fetchContacts(currentUrl) {
@@ -33,7 +45,12 @@ if (!addressBookId || !bearerToken) {
             .then(res => {
                 if (!res.ok) {
                     if (res.status === 401) {
-                        alert("❌ Authentication Error: Token expired or invalid.");
+                        if (allContacts.length > 0) {
+                            alert(`❌ Token expired mid-export. Saving the ${allContacts.length} contacts fetched so far (export is INCOMPLETE).`);
+                            buildAndDownloadCSV();
+                        } else {
+                            alert("❌ Authentication Error: Token expired or invalid.");
+                        }
                         throw new Error("Token expired");
                     }
                     if (allContacts.length > 0) {
@@ -75,7 +92,7 @@ if (!addressBookId || !bearerToken) {
             let phone = "";
             if (c.addresses && c.addresses.length > 0) {
                 let tel = c.addresses.find(a => a.type === "TEL") || c.addresses[0];
-                phone = sanitizeForCSV(tel.value); 
+                phone = sanitizePhoneForCSV(tel.value);
             }
 
             csv += `"${fName}","${lName}","${phone}","${company}"\n`;
